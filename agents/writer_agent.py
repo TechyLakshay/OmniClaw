@@ -1,6 +1,6 @@
 from core.llm import get_llm, get_prompt_template
 from tools.file_writer import write_file
-from langchain.schema import HumanMessage, AIMessage
+from langchain.messages import HumanMessage, AIMessage
 
 def run_writer_agent(content: str, filename: str = "note", history: list = []) -> str:
     try:

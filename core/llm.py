@@ -3,6 +3,12 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.messages import HumanMessage, AIMessage
 from dotenv import load_dotenv
 import os
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+logger = logging.getLogger(__name__)
+
 
 load_dotenv()
 
@@ -11,6 +17,7 @@ load_dotenv()
 # -----------------------------
 def get_llm():
     try:
+        logger.info("initializing LLM...")
         return ChatOllama(
             base_url=os.getenv("OLLAMA_BASE_URL"),
             model=os.getenv("MODEL_NAME")

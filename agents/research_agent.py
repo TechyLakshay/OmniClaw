@@ -1,6 +1,10 @@
 from core.llm import get_llm, get_prompt_template
 from tools.web_search import web_search
-from langchain.schema import HumanMessage, AIMessage
+from langchain.messages import HumanMessage, AIMessage
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def run_research_agent(query: str, history: list = []) -> str:
     try:

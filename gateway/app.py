@@ -1,6 +1,7 @@
 
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
+from agents.orchestrator import run_orchestrator
 from core.llm import invoke_llm
 from memory.database import save_message, load_history
 import logging
@@ -14,6 +15,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
@@ -48,8 +50,7 @@ async def chat(req: ChatRequest, x_api_key: str = Header(...)):
         history = load_history(req.user_id)
         logger.info(f"request_id={request_id} history_loaded={len(history)} messages")
 
-        response = invoke_llm(req.message, "You are a helpful assistant, answer the user's question." \
-        "choose right agent if it comes to search or read/write something by using the orchestrator", history)
+        response = run_orchestrator(req.message, history)
 
         save_message(req.user_id, "human", req.message)
         save_message(req.user_id, "ai", response)

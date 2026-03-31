@@ -3,8 +3,10 @@ uvicorn
 python-telegram-bot
 langchain
 langchain-community
-lanchain_core
+langchain_core
 ollama
 python-dotenv
 httpx
 duckduckgo-search
+ddgs
+supabase

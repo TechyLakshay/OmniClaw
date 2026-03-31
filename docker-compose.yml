@@ -1,0 +1,21 @@
+
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./notes:/app/notes
+    restart: unless-stopped
+
+  bot:
+    build: .
+    command: python bot/telegram_bot.py
+    env_file:
+      - .env
+    depends_on:
+      - app
+    restart: unless-stopped

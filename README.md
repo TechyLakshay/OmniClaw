@@ -206,4 +206,5 @@ MIT
 
 ---
 
-*Built by Laksh — intern, Python developer, agentic AI enthusiast.*
+*Built by Lakshay — intern, Python developer, agentic AI enthusiast.*
+

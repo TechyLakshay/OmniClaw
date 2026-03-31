@@ -1,6 +1,7 @@
 from langchain_community.chat_models import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.messages import HumanMessage, AIMessage
+# from langchain_anthropic import ChatAnthropic
 from dotenv import load_dotenv
 import os
 import logging
@@ -24,6 +25,16 @@ def get_llm():
         )
     except Exception as e:
         raise RuntimeError(f"LLM init failed: {e}")
+
+# def get_llm():
+#     try:
+#         logger.info("initializing LLM...")
+#         return ChatAnthropic(
+#             model=os.getenv("MODEL_NAME"),
+#             anthropic_api_key=os.getenv("CLAUDE_API_KEY")
+#         )
+#     except Exception as e:
+#         raise RuntimeError(f"LLM init failed: {e}")
 
 
 # -----------------------------

@@ -36,10 +36,10 @@ Rules:
 # ✅ Agent Functions
 # -----------------------------
 def run_chat_agent(message: str, history: list):
-    logger.info("running chat agent")
+    logger.info("running chat agent...")
     return invoke_llm(
         prompt=message,
-        system="You are NanoClaw, a helpful AI assistant. Be concise.",
+        system="You are NanoClaw, a helpful AI assistant. Be concise, clear, and friendly and answer accurately.",
         history=history
     )
 

@@ -188,7 +188,7 @@ mini-claw/
 
 ---
 
-## Key Design Decisions
+## Key Design Decisions:
 
 **Why Ollama?** Local inference — zero API cost during development. Swap to Gemini/GPT-4 via LiteLLM when needed.
 

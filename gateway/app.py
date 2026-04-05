@@ -36,7 +36,7 @@ def authenticate(api_key: str):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "Fine"}   
 
 @app.post("/chat")
 async def chat(req: ChatRequest, x_api_key: str = Header(...)):

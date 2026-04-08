@@ -61,6 +61,7 @@ A local-first personal AI assistant built on Telegram with a multi-agent archite
 - **Persistent Memory** — Per-user conversation history stored in Supabase
 - **Telegram Commands** — `/start` for introduction, `/clear` to reset history
 - **Docker** — Fully containerized, runs anywhere with one command
+- **Telegram CLI** - Chat with Model using Terminal
 
 ---
 

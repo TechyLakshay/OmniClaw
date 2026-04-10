@@ -22,7 +22,8 @@ A local-first personal AI assistant built on Telegram with a multi-agent archite
 ## Architecture
 
 
-<img width="1134" height="494" alt="image" src="https://github.com/user-attachments/assets/b3cff353-272f-48a8-97fe-ed03bbec8230" />
+<img width="1786" height="811" alt="Screenshot 2026-04-10 160434" src="https://github.com/user-attachments/assets/668eeb32-386f-434e-b8cb-a5a649d69ea7" />
+
 
 ### Layers
 

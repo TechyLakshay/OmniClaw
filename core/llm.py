@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 CORE_CONTEXT_FILES = [
-    "IDENTITY.md",
-    "SOUL.md",
-    "USER.md"
+    "context/IDENTITY.md",
+    "context/SOUL.md",
+    "context/USER.md"
 ]
 
 

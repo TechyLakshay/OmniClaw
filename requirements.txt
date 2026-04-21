@@ -4,6 +4,7 @@ python-telegram-bot
 langchain
 langchain-community
 langchain_core
+langchain_openai
 ollama
 python-dotenv
 httpx

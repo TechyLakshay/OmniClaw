@@ -5,6 +5,7 @@ from langchain.messages import HumanMessage, AIMessage
 from dotenv import load_dotenv
 import os
 import logging
+import time
 from pathlib import Path
 
 
@@ -55,14 +56,19 @@ def get_llm(
     model: str = "qwen2.5:7b",
     temperature: float = 0.7,
 ):
+    start_time = time.perf_counter()
+    logger.info(f"llm:get_llm:start model={model} temperature={temperature}")
+
     if "/" in model:
         raise ValueError(f"Invalid local model name: {model}")
 
-    return ChatOllama(
+    llm = ChatOllama(
         base_url="http://localhost:11434",
         model=model,
         temperature=temperature,
     )
+    logger.info(f"llm:get_llm:ready elapsed={time.perf_counter() - start_time:.2f}s model={model}")
+    return llm
 # -----------------------------
 # ✅ Dynamic Prompt Template
 # -----------------------------
@@ -135,20 +141,44 @@ def invoke_llm(prompt: str, system: str, history: list = None) -> str:
         LLM response as string
     """
     try:
+        total_start = time.perf_counter()
+        logger.info(
+            f"llm:invoke:start prompt_len={len(str(prompt))} system_len={len(str(system))} "
+            f"history_len={len(history) if history else 0}"
+        )
+
         if history is None:
             history = []
 
+        llm_start = time.perf_counter()
         llm = get_llm()
+        logger.info(f"llm:invoke:client_ready elapsed={time.perf_counter() - llm_start:.2f}s")
+
+        context_start = time.perf_counter()
         core_context = load_core_context()
         final_system = system if not core_context else f"{core_context}\n\n[Task Prompt]\n{system}"
         prompt_template = get_prompt_template(final_system)
+        logger.info(
+            f"llm:invoke:prompt_ready elapsed={time.perf_counter() - context_start:.2f}s "
+            f"final_system_len={len(final_system)}"
+        )
 
         chain = prompt_template | llm
 
+        invoke_start = time.perf_counter()
+        logger.info("llm:invoke:model_call:start")
         response = chain.invoke({
             "history": build_history(history),
             "input": str(prompt)
         })
+        logger.info(
+            f"llm:invoke:model_call:done elapsed={time.perf_counter() - invoke_start:.2f}s"
+        )
+
+        total_elapsed = time.perf_counter() - total_start
+        logger.info(
+            f"llm:invoke:success total_elapsed={total_elapsed:.2f}s response_len={len(str(response.content))}"
+        )
 
         return response.content
 

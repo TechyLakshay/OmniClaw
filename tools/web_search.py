@@ -1,3 +1,4 @@
+# LEGACY: kept as fallback if MCP search is unavailable
 from ddgs import DDGS
 
 def web_search(query: str, max_results: int = 3) -> str:

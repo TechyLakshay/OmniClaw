@@ -1,44 +1,76 @@
-# test_gmail.py
+"""Simple local script for testing MCP connections."""
 
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-import os
+import logging
 
-SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+from core.mcp_client import get_default_filesystem_config
+from core.mcp_client import list_tools
+from tools.duckduckgo_mcp import build_duckduckgo_search_arguments
+from tools.duckduckgo_mcp import build_duckduckgo_server_config
+from tools.duckduckgo_mcp import format_search_results
+from tools.duckduckgo_mcp import parse_json_result
 
-def test_gmail_connection():
-    creds = None
-    
-    # first time → opens browser for auth
-    if not os.path.exists('token.json'):
-        flow = InstalledAppFlow.from_client_secrets_file(
-            'credentials.json', SCOPES
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+logger = logging.getLogger(__name__)
+
+
+def test_filesystem_tools() -> None:
+    """Test listing tools from the default filesystem MCP server."""
+    try:
+        logger.info("Testing filesystem MCP tool listing")
+
+        # The filesystem server is the easiest local MCP server to test first.
+        server_config = get_default_filesystem_config()
+        tools = list_tools(
+            command=server_config["command"],
+            args=server_config["args"],
+            env=server_config["env"],
         )
-        creds = flow.run_local_server(port=0)
-        with open('token.json', 'w') as f:
-            f.write(creds.to_json())
-    else:
-        creds = Credentials.from_authorized_user_file('token.json')
-    
-    # connect to Gmail
-    service = build('gmail', 'v1', credentials=creds)
-    
-    # fetch 1 email only
-    results = service.users().messages().list(
-        userId='me',
-        maxResults=50,
-        q='is:unread',
-    ).execute()
-    
-    messages = results.get('messages', [])
-    
-    if messages:
-        print("✅ Gmail connected successfully!")
-        print(f"✅ Found {len(messages)} message")
-        print(f"✅ Message ID: {messages[0]['id']}")
-    else:
-        print("✅ Connected but no emails found")
+
+        print("Filesystem MCP tools:")
+        print(tools)
+
+    except Exception as exc:
+        logger.error("Filesystem MCP test failed: %s", str(exc))
+        print(f"Filesystem MCP test failed: {str(exc)}")
+
+
+def test_duckduckgo_search() -> None:
+    """Test calling DuckDuckGo Search through the MCP search helper."""
+    try:
+        logger.info("Testing DuckDuckGo Search MCP tool call")
+
+        # This uses the DuckDuckGo MCP server configuration from the search helper.
+        server_config = build_duckduckgo_server_config()
+        search_arguments = build_duckduckgo_search_arguments("Python FastAPI tutorial")
+
+        from core.mcp_client import call_tool
+
+        raw_result = call_tool(
+            command=server_config["command"],
+            tool_name="duckduckgo_search",
+            arguments=search_arguments,
+            args=server_config["args"],
+            env=server_config["env"],
+        )
+
+        parsed_result = parse_json_result(raw_result)
+        formatted_result = format_search_results(parsed_result, raw_result)
+
+        print("\nDuckDuckGo Search MCP result:")
+        print(formatted_result)
+
+    except Exception as exc:
+        logger.error("DuckDuckGo Search MCP test failed: %s", str(exc))
+        print(f"DuckDuckGo Search MCP test failed: {str(exc)}")
+
+
+def main() -> None:
+    """Run the available MCP connection tests step by step."""
+    test_filesystem_tools()
+    test_duckduckgo_search()
+
 
 if __name__ == "__main__":
-    test_gmail_connection()
+    main()

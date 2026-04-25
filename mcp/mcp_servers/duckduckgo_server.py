@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Any
 
-from mcp.mcp_client.mcp_client import call_tool
+from mcp.mcp_client import call_tool
 
 
 logger = logging.getLogger(__name__)

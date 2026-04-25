@@ -1,8 +1,8 @@
 import logging
 
 from core.llm import invoke_llm
-from tools.research_tool import run_research_tool
 from tools.writer_tool import run_writer_tool
+from tools.mcp_tools.mcp_research import run_mcp_research
 
 
 logging.basicConfig(
@@ -19,7 +19,7 @@ You are the only agent in the system.
 Decide the best next action for the user request.
 
 Available actions:
-- RESEARCH_TOOL -> facts, search, current information, summaries based on search
+- RESEARCH_TOOL -> MCP DuckDuckGo search for facts, current information
 - WRITER_TOOL -> create structured markdown and save notes/content
 - CHAT -> normal direct conversation without tool use
 
@@ -41,7 +41,7 @@ def run_chat_agent(message: str, history: list) -> str:
 
 
 TOOLS = {
-    "RESEARCH_TOOL": run_research_tool,
+    "RESEARCH_TOOL": run_mcp_research,
     "WRITER_TOOL": run_writer_tool,
     "CHAT": run_chat_agent,
 }

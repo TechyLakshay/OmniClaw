@@ -1,5 +1,6 @@
 
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from agents.orchestrator import run_orchestrator
 from memory.database import save_message, load_history
@@ -66,57 +67,83 @@ def enforce_rate_limit(user_id: str):
     recent_requests.append(now)
     USER_REQUESTS[user_id] = recent_requests
 
+#MCP Middleware for LOGGING and ERROR HANDLING
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    """Log each request once and attach a request id for the response."""
+    request_id = str(uuid.uuid4())
+    start_time = time.time()
+
+    # The request id is stored on the request so route handlers can reuse it.
+    request.state.request_id = request_id
+
+    response = await call_next(request)
+    duration = time.time() - start_time
+
+    logger.info(
+        "request_id=%s method=%s path=%s status=%s duration=%.2fs",
+        request_id,
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration,
+    )
+
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Return one JSON error response for unhandled server errors."""
+    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "request_id": request_id,
+                "detail": exc.detail,
+            },
+        )
+
+    logger.error("request_id=%s status=error error=%s", request_id, str(exc))
+    return JSONResponse(
+        status_code=500,
+        content={
+            "request_id": request_id,
+            "detail": "Internal error",
+        },
+    )
+
 @app.get("/health")
 async def health():
     return {"status": "Fine"}   
 
 @app.post("/chat")
-async def chat(req: ChatRequest, x_api_key: str = Header(...)):
-    request_id = str(uuid.uuid4())
-    logger.info(f"request_id={request_id} user={req.user_id} msg_len={len(req.message)}")
+async def chat(req: ChatRequest, request: Request, x_api_key: str = Header(...)):
+    authenticate(x_api_key)
+    validate_request(req)
+    enforce_rate_limit(req.user_id)
 
-    try:
-        authenticate(x_api_key)
-        validate_request(req)
-        enforce_rate_limit(req.user_id)
+    history = load_history(req.user_id)
+    response = run_orchestrator(req.message, history)
 
-        history = load_history(req.user_id)
-        logger.info(f"request_id={request_id} history_loaded={len(history)} messages")
+    save_message(req.user_id, "human", req.message)
+    save_message(req.user_id, "ai", response)
 
-        response = run_orchestrator(req.message, history)
-
-        save_message(req.user_id, "human", req.message)
-        save_message(req.user_id, "ai", response)
-        logger.info(f"request_id={request_id} status=success")
-
-        return {
-            "request_id": request_id,
-            "response": response
-        }
-
-    except HTTPException as e:
-        logger.warning(f"request_id={request_id} status=rejected detail={e.detail}")
-        raise
-    except Exception as e:
-        logger.error(f"request_id={request_id} status=error error={str(e)}")
-        raise HTTPException(status_code=500, detail="Internal error")
+    return {
+        "request_id": request.state.request_id,
+        "response": response
+    }
 
 
 @app.post("/process-latest-email")
-async def process_latest_email(req: ProcessLatestEmailRequest, x_api_key: str = Header(...)):
-    request_id = str(uuid.uuid4())
-    logger.info(f"request_id={request_id} action=process_latest_email")
+async def process_latest_email(req: ProcessLatestEmailRequest, request: Request, x_api_key: str = Header(...)):
+    authenticate(x_api_key)
+    result = process_latest_unread_email(mark_as_read=req.mark_as_read)
 
-    try:
-        authenticate(x_api_key)
-        result = process_latest_unread_email(mark_as_read=req.mark_as_read)
-        logger.info(f"request_id={request_id} status={result.get('status')}")
-        return {
-            "request_id": request_id,
-            **result,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"request_id={request_id} status=error error={str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "request_id": request.state.request_id,
+        **result,
+    }

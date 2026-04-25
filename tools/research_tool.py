@@ -1,3 +1,5 @@
+"""Research tool that uses the search router and summarizes results."""
+
 import logging
 
 from langchain.messages import AIMessage, HumanMessage

@@ -2,8 +2,8 @@
 
 import asyncio
 import json
-import logging
 import os
+import threading
 from typing import Any
 
 try:
@@ -18,17 +18,12 @@ else:
     MCP_IMPORT_ERROR = None
 
 
-logger = logging.getLogger(__name__)
-
-
 def build_filesystem_server_config(root_path: str) -> dict[str, Any]:
     """
     Build a simple MCP server config for the filesystem server example.
 
     This uses the official filesystem MCP server through `npx`.
     """
-    logger.info("Building filesystem MCP server config for path: %s", root_path)
-
     return {
         "command": "npx",
         "args": ["-y", "@modelcontextprotocol/server-filesystem", root_path],
@@ -43,7 +38,6 @@ def get_default_filesystem_config() -> dict[str, Any]:
     This gives the client an easy example server to connect to first.
     """
     root_path = os.getcwd()
-    logger.info("Using current working directory for default filesystem MCP server: %s", root_path)
     return build_filesystem_server_config(root_path)
 
 
@@ -55,7 +49,6 @@ def ensure_mcp_installed() -> None:
     """
     if MCP_IMPORT_ERROR is not None:
         message = "The `mcp` package is not installed. Run `pip install mcp` before using the MCP client."
-        logger.error(message)
         raise RuntimeError(message) from MCP_IMPORT_ERROR
 
 
@@ -71,43 +64,11 @@ def build_server_parameters(
     """
     ensure_mcp_installed()
 
-    safe_args = args or []
-
-    logger.info("Creating MCP server parameters for command: %s", command)
     return StdioServerParameters(
         command=command,
-        args=safe_args,
+        args=args or [],
         env=env,
     )
-
-
-async def initialize_session(session: ClientSession) -> None:
-    """
-    Initialize a connected MCP session.
-
-    The session must be initialized before listing tools or calling tools.
-    """
-    try:
-        logger.info("Initializing MCP session")
-        await session.initialize()
-    except Exception as exc:
-        logger.error("Failed to initialize MCP session: %s", str(exc))
-        raise RuntimeError(f"Failed to initialize MCP session: {str(exc)}") from exc
-
-
-async def fetch_tool_list(session: ClientSession) -> list[str]:
-    """
-    Get the list of tool names from the connected MCP server.
-
-    Only tool names are returned to keep the output simple.
-    """
-    try:
-        logger.info("Requesting tool list from MCP server")
-        response = await session.list_tools()
-        return [tool.name for tool in response.tools]
-    except Exception as exc:
-        logger.error("Failed to list MCP tools: %s", str(exc))
-        raise RuntimeError(f"Failed to list MCP tools: {str(exc)}") from exc
 
 
 def extract_text_from_content_item(content_item: Any) -> str:
@@ -148,25 +109,34 @@ def format_tool_result(result: Any) -> str:
     return str(result)
 
 
-async def call_tool_on_session(
-    session: ClientSession,
-    tool_name: str,
-    arguments: dict[str, Any] | None = None,
-) -> str:
+def run_async_safely(coroutine: Any) -> Any:
     """
-    Call one MCP tool on an active session and return plain text.
+    Run an async task from sync code, even if an event loop is already running.
 
-    Tool arguments are optional because some tools do not need input.
+    FastAPI already runs an event loop, so this uses a worker thread in that case.
     """
     try:
-        safe_arguments = arguments or {}
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coroutine)
 
-        logger.info("Calling MCP tool: %s", tool_name)
-        result = await session.call_tool(tool_name, arguments=safe_arguments)
-        return format_tool_result(result)
-    except Exception as exc:
-        logger.error("Failed to call MCP tool `%s`: %s", tool_name, str(exc))
-        raise RuntimeError(f"Failed to call MCP tool `{tool_name}`: {str(exc)}") from exc
+    result_holder: dict[str, Any] = {}
+
+    def runner() -> None:
+        """Run the coroutine in a separate thread with its own event loop."""
+        try:
+            result_holder["result"] = asyncio.run(coroutine)
+        except Exception as exc:
+            result_holder["error"] = exc
+
+    thread = threading.Thread(target=runner, daemon=True)
+    thread.start()
+    thread.join()
+
+    if "error" in result_holder:
+        raise result_holder["error"]
+
+    return result_holder.get("result")
 
 
 async def list_tools_async(
@@ -179,17 +149,14 @@ async def list_tools_async(
 
     This is the async version for callers that already use asyncio.
     """
-    try:
-        server_parameters = build_server_parameters(command=command, args=args, env=env)
+    server_parameters = build_server_parameters(command=command, args=args, env=env)
 
-        logger.info("Opening MCP stdio connection for tool listing")
-        async with stdio_client(server_parameters) as (read_stream, write_stream):
-            async with ClientSession(read_stream, write_stream) as session:
-                await initialize_session(session)
-                return await fetch_tool_list(session)
-    except Exception as exc:
-        logger.error("MCP tool listing failed: %s", str(exc))
-        raise RuntimeError(f"MCP tool listing failed: {str(exc)}") from exc
+    async with stdio_client(server_parameters) as (read_stream, write_stream):
+        async with ClientSession(read_stream, write_stream) as session:
+            # The session must be initialized before any MCP request is sent.
+            await session.initialize()
+            response = await session.list_tools()
+            return [tool.name for tool in response.tools]
 
 
 async def call_tool_async(
@@ -204,17 +171,14 @@ async def call_tool_async(
 
     This is the async version for callers that already use asyncio.
     """
-    try:
-        server_parameters = build_server_parameters(command=command, args=args, env=env)
+    server_parameters = build_server_parameters(command=command, args=args, env=env)
 
-        logger.info("Opening MCP stdio connection for tool call: %s", tool_name)
-        async with stdio_client(server_parameters) as (read_stream, write_stream):
-            async with ClientSession(read_stream, write_stream) as session:
-                await initialize_session(session)
-                return await call_tool_on_session(session, tool_name, arguments)
-    except Exception as exc:
-        logger.error("MCP tool call failed for `%s`: %s", tool_name, str(exc))
-        raise RuntimeError(f"MCP tool call failed for `{tool_name}`: {str(exc)}") from exc
+    async with stdio_client(server_parameters) as (read_stream, write_stream):
+        async with ClientSession(read_stream, write_stream) as session:
+            # The session must be initialized before any MCP request is sent.
+            await session.initialize()
+            result = await session.call_tool(tool_name, arguments=arguments or {})
+            return format_tool_result(result)
 
 
 def list_tools(
@@ -227,8 +191,7 @@ def list_tools(
 
     This sync wrapper keeps the rest of the project easy to read.
     """
-    logger.info("Running synchronous MCP tool listing")
-    return asyncio.run(list_tools_async(command=command, args=args, env=env))
+    return run_async_safely(list_tools_async(command=command, args=args, env=env))
 
 
 def call_tool(
@@ -243,8 +206,7 @@ def call_tool(
 
     This sync wrapper is useful for simple orchestrator code.
     """
-    logger.info("Running synchronous MCP tool call for: %s", tool_name)
-    return asyncio.run(
+    return run_async_safely(
         call_tool_async(
             command=command,
             tool_name=tool_name,
@@ -277,8 +239,6 @@ class MCPClient:
         self.args = args or []
         self.env = env
 
-        logger.info("Created MCPClient for command: %s", command)
-
     def list_tools(self) -> list[str]:
         """
         List available tools from this client's MCP server.
@@ -308,16 +268,11 @@ def create_filesystem_mcp_client(root_path: str | None = None) -> MCPClient:
 
     If no path is given, the current working directory is used.
     """
-    try:
-        config = get_default_filesystem_config() if root_path is None else build_filesystem_server_config(root_path)
+    config = get_default_filesystem_config() if root_path is None else build_filesystem_server_config(root_path)
 
-        # TODO: Support HTTP MCP servers later if you want remote tool connections.
-        logger.info("Creating filesystem MCP client")
-        return MCPClient(
-            command=config["command"],
-            args=config["args"],
-            env=config["env"],
-        )
-    except Exception as exc:
-        logger.error("Failed to create filesystem MCP client: %s", str(exc))
-        raise RuntimeError(f"Failed to create filesystem MCP client: {str(exc)}") from exc
+    # TODO: Support HTTP MCP servers later if you want remote tool connections.
+    return MCPClient(
+        command=config["command"],
+        args=config["args"],
+        env=config["env"],
+    )

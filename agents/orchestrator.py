@@ -2,6 +2,7 @@ import logging
 
 from core.llm import invoke_llm
 from tools.research_tool import run_research_tool
+from tools.mcp_t import run_mcp_tool, list_all_tools
 from tools.writer_tool import run_writer_tool
 
 
@@ -38,12 +39,12 @@ Available actions:
 - RESEARCH_TOOL -> facts, search, current information, summaries based on search
 - WRITER_TOOL -> create structured markdown and save notes/content
 - CHAT -> normal direct conversation without tool use
-- MCP -> call an external tool via MCP (only if you know for sure it can help)
+- CALCULATOR -> add two numbers
 
 Rules:
 - Answer with ONLY ONE TOKEN
 - No explanation
-- Reply with exactly one of: RESEARCH_TOOL, WRITER_TOOL, CHAT, MCP
+- Reply with exactly one of: RESEARCH_TOOL, WRITER_TOOL, CHAT, CALCULATOR
 """
 
 def run_chat_agent(message: str, history: list) -> str:
@@ -59,7 +60,7 @@ TOOLS = {
     "RESEARCH_TOOL": run_research_tool,
     "WRITER_TOOL": run_writer_tool,
     "CHAT": run_chat_agent,
-    "MCP": run_mcp_tool,
+    "CALCULATOR": run_mcp_tool,
 }
 
 
@@ -81,6 +82,8 @@ def decide_agent(message: str, history: list) -> str:
             return "WRITER_TOOL"
         if "CHAT" in decision:
             return "CHAT"
+        if "CALCULATOR" in decision:
+            return "CALCULATOR"
 
         return "CHAT"
 

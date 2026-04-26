@@ -13,6 +13,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# ORCHESTRATOR_SYSTEM = """
+# You are the only agent in the system.
+
+# Decide the best next action for the user request.
+
+# Available actions:
+# - RESEARCH_TOOL -> facts, search, current information, summaries based on search
+# - WRITER_TOOL -> create structured markdown and save notes/content
+# - CHAT -> normal direct conversation without tool use
+
+# Rules:
+# - Answer with ONLY ONE TOKEN
+# - No explanation
+# - Reply with exactly one of: RESEARCH_TOOL, WRITER_TOOL, CHAT
+# """
+
 ORCHESTRATOR_SYSTEM = """
 You are the only agent in the system.
 
@@ -22,13 +38,13 @@ Available actions:
 - RESEARCH_TOOL -> facts, search, current information, summaries based on search
 - WRITER_TOOL -> create structured markdown and save notes/content
 - CHAT -> normal direct conversation without tool use
+- MCP -> call an external tool via MCP (only if you know for sure it can help)
 
 Rules:
 - Answer with ONLY ONE TOKEN
 - No explanation
-- Reply with exactly one of: RESEARCH_TOOL, WRITER_TOOL, CHAT
+- Reply with exactly one of: RESEARCH_TOOL, WRITER_TOOL, CHAT, MCP
 """
-
 
 def run_chat_agent(message: str, history: list) -> str:
     logger.info("running chat agent...")
@@ -43,6 +59,7 @@ TOOLS = {
     "RESEARCH_TOOL": run_research_tool,
     "WRITER_TOOL": run_writer_tool,
     "CHAT": run_chat_agent,
+    "MCP": run_mcp_tool,
 }
 
 

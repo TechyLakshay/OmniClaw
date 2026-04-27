@@ -7,7 +7,7 @@ A local-first personal AI assistant built on Telegram and CLI with a multi-agent
 > Built from scratch :)
 ---
 
-## What It Does
+## What It Does..
 
 - Understands your message and routes it to the right agent automatically
 - Remembers your conversations across sessions

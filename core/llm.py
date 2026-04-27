@@ -1,4 +1,4 @@
-from langchain_community.chat_models import ChatOllama
+# from langchain_community.chat_models import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.messages import HumanMessage, AIMessage
 # from langchain_openai import ChatOpenAI
@@ -7,6 +7,8 @@ import os
 import logging
 import time
 from pathlib import Path
+from anthropic import Anthropic
+
 
 
 
@@ -52,23 +54,50 @@ CORE_CONTEXT_FILES = [
 #     )
 
 # Update core/llm.py get_llm() function
+# def get_llm(
+#     model: str = "qwen2.5:7b",
+#     temperature: float = 0.7,
+# ):
+#     start_time = time.perf_counter()
+#     logger.info(f"llm:get_llm:start model={model} temperature={temperature}")
+
+#     if "/" in model:
+#         raise ValueError(f"Invalid local model name: {model}")
+
+#     llm = ChatOllama(
+#         base_url="http://localhost:11434",
+#         model=model,
+#         temperature=temperature,
+#     )
+#     logger.info(f"llm:get_llm:ready elapsed={time.perf_counter() - start_time:.2f}s model={model}")
+#     return llm
+
+client = Anthropic(api_key="55b0360aa23441a99cf6ba1985093128.DkWnAWzRUELQXRTm",
+                   base_url="https://api.z.ai/api/anthropic")
+
 def get_llm(
-    model: str = "qwen2.5:7b",
+    model: str = "claude-haiku-4-5",
     temperature: float = 0.7,
+    max_tokens: int = 1024,
 ):
-    start_time = time.perf_counter()
-    logger.info(f"llm:get_llm:start model={model} temperature={temperature}")
+    """Get Anthropic LLM instance using direct client (LangChain-compatible interface)."""
+    return {
+        "client": client,
+        "model": model,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
 
-    if "/" in model:
-        raise ValueError(f"Invalid local model name: {model}")
 
-    llm = ChatOllama(
-        base_url="http://localhost:11434",
-        model=model,
-        temperature=temperature,
-    )
-    logger.info(f"llm:get_llm:ready elapsed={time.perf_counter() - start_time:.2f}s model={model}")
-    return llm
+def get_prompt_template(system: str):
+    """Create a LangChain prompt template for compatibility."""
+    return ChatPromptTemplate.from_messages([
+        ("system", system),
+        MessagesPlaceholder(variable_name="history"),
+        ("human", "{input}")
+    ])
+
+
 # -----------------------------
 # ✅ Dynamic Prompt Template
 # -----------------------------
@@ -98,20 +127,13 @@ def load_core_context() -> str:
     return "\n\n".join(sections)
 
 
-def get_prompt_template(system: str):
-    return ChatPromptTemplate.from_messages([
-        ("system", system),
-        MessagesPlaceholder(variable_name="history"),
-        ("human", "{input}")
-    ])
-
-
 
 
 # -----------------------------
 # ✅ History Builder
 # -----------------------------
 def build_history(history: list) -> list:
+    """Build conversation history in LangChain format."""
     messages = []
 
     for msg in history:
@@ -130,13 +152,13 @@ def build_history(history: list) -> list:
 # -----------------------------
 def invoke_llm(prompt: str, system: str, history: list = None) -> str:
     """
-    Invoke the LLM with proper history and system context.
-    
+    Invoke the LLM with proper history and system context using Anthropic API.
+
     Args:
         prompt: User message
         system: System prompt/instructions
         history: Conversation history (list of dicts with 'role' and 'content')
-    
+
     Returns:
         LLM response as string
     """
@@ -151,36 +173,50 @@ def invoke_llm(prompt: str, system: str, history: list = None) -> str:
             history = []
 
         llm_start = time.perf_counter()
-        llm = get_llm()
+        llm_config = get_llm()
+        client = llm_config["client"]
         logger.info(f"llm:invoke:client_ready elapsed={time.perf_counter() - llm_start:.2f}s")
 
         context_start = time.perf_counter()
         core_context = load_core_context()
         final_system = system if not core_context else f"{core_context}\n\n[Task Prompt]\n{system}"
-        prompt_template = get_prompt_template(final_system)
         logger.info(
             f"llm:invoke:prompt_ready elapsed={time.perf_counter() - context_start:.2f}s "
             f"final_system_len={len(final_system)}"
         )
 
-        chain = prompt_template | llm
+        # Build messages for Anthropic API (convert from dict format)
+        anthropic_messages = []
+        for msg in history:
+            content = str(msg.get("content", ""))
+            if msg["role"] == "human":
+                anthropic_messages.append({"role": "user", "content": content})
+            elif msg["role"] == "ai":
+                anthropic_messages.append({"role": "assistant", "content": content})
+        anthropic_messages.append({"role": "user", "content": str(prompt)})
 
         invoke_start = time.perf_counter()
         logger.info("llm:invoke:model_call:start")
-        response = chain.invoke({
-            "history": build_history(history),
-            "input": str(prompt)
-        })
+
+        response = client.messages.create(
+            model=llm_config["model"],
+            temperature=llm_config["temperature"],
+            max_tokens=llm_config["max_tokens"],
+            system=final_system,
+            messages=anthropic_messages
+        )
+
         logger.info(
             f"llm:invoke:model_call:done elapsed={time.perf_counter() - invoke_start:.2f}s"
         )
 
         total_elapsed = time.perf_counter() - total_start
+        response_content = response.content[0].text
         logger.info(
-            f"llm:invoke:success total_elapsed={total_elapsed:.2f}s response_len={len(str(response.content))}"
+            f"llm:invoke:success total_elapsed={total_elapsed:.2f}s response_len={len(response_content)}"
         )
 
-        return response.content
+        return response_content
 
     except Exception as e:
         logger.error(f"LLM invocation error: {str(e)}")

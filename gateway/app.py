@@ -85,8 +85,9 @@ async def chat(req: ChatRequest, x_api_key: str = Header(...)):
 
         response = run_orchestrator(req.message, history)
 
-        save_message(req.user_id, "human", req.message)
-        save_message(req.user_id, "ai", response)
+        # Temporarily disabled - Supabase is down
+        # save_message(req.user_id, "human", req.message)
+        # save_message(req.user_id, "ai", response)
         logger.info(f"request_id={request_id} status=success")
 
         return {

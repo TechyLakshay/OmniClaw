@@ -4,7 +4,7 @@
 A local-first personal AI assistant built on Telegram and CLI with a multi-agent architecture, persistent memory, and tool calling. Inspired by the OpenClaw architecture pattern.
 
 
-> Built from scratch 
+> Built from scratch :)
 ---
 
 ## What It Does

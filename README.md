@@ -190,13 +190,13 @@ mini-claw/
 
 **Why manual JSON parsing over `with_structured_output`?** Ollama local models are unreliable with structured output on every call. Manual `json.loads` with fallback is more stable.
 
----
+----
 
 ## License
 
 MIT
 
----
+----
 
 *Built by Lakshay — intern, Python developer, agentic AI enthusiast.*
 

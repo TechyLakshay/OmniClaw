@@ -42,7 +42,7 @@ class ProcessLatestEmailRequest(BaseModel):
 
     mark_as_read: bool = False
 
-
+# Request Validation
 def validate_request(req: ChatRequest) -> None:
     """Validate chat input constraints."""
     if not req.message.strip():
@@ -50,13 +50,13 @@ def validate_request(req: ChatRequest) -> None:
     if len(req.message) > 2000:
         raise HTTPException(status_code=400, detail="Message too long")
 
-
+#Authentication
 def authenticate(api_key: str) -> None:
     """Validate API key from request headers."""
     if api_key != os.getenv("SECRET_KEY"):
         raise HTTPException(status_code=401, detail="Unauthorised")
 
-
+#Ratelimiting
 def enforce_rate_limit(user_id: str) -> None:
     """Apply a sliding-window rate limit per user."""
     now = time.time()
@@ -76,7 +76,7 @@ def enforce_rate_limit(user_id: str) -> None:
     recent_requests.append(now)
     USER_REQUESTS[user_id] = recent_requests
 
-
+#middleware - logs and error 
 @app.middleware("http")
 async def request_logging_and_error_middleware(request: Request, call_next):
     """Log request lifecycle and convert unhandled errors to JSON.
@@ -120,6 +120,7 @@ async def request_logging_and_error_middleware(request: Request, call_next):
             content={"request_id": request_id, "detail": "Internal error"},
         )
 
+#fastapi endpoints
 @app.get("/health")
 async def health():
     return {"status": "Fine"}   

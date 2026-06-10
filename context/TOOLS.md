@@ -7,6 +7,7 @@ Current tools:
 - `tools/file_writer.py`
   - writes markdown files into `notes/`
 
+
 Rules:
 - only use tools that are implemented
 - if a tool fails, report the error plainly

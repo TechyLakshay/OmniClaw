@@ -1,5 +1,5 @@
-from core.llm import invoke_llm
-from tools.file_writer import write_file
+from engine.llm.client import invoke_llm
+from toolkit.file_writer import write_file
 
 
 def run_writer_tool(content: str, filename: str = "note", history: list | None = None) -> str:

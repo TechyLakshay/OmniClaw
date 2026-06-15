@@ -1,9 +1,13 @@
+import sys
+import os
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
-from agents.orchestrator import run_orchestrator
-from memory.database import save_message, load_history
-from core.email_processor import process_latest_unread_email
+from engine.agent.orchestrator import run_orchestrator
+from engine.memory.store import save_message, load_history
+# from toolkit.email import process_latest_unread_email  # TODO: Create email module
 import logging
 import uuid
 import os
@@ -103,21 +107,22 @@ async def chat(req: ChatRequest, x_api_key: str = Header(...)):
         raise HTTPException(status_code=500, detail="Internal error")
 
 
-@app.post("/process-latest-email")
-async def process_latest_email(req: ProcessLatestEmailRequest, x_api_key: str = Header(...)):
-    request_id = str(uuid.uuid4())
-    logger.info(f"request_id={request_id} action=process_latest_email")
-
-    try:
-        authenticate(x_api_key)
-        result = process_latest_unread_email(mark_as_read=req.mark_as_read)
-        logger.info(f"request_id={request_id} status={result.get('status')}")
-        return {
-            "request_id": request_id,
-            **result,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"request_id={request_id} status=error error={str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+# TODO: Re-enable when email module is created
+# @app.post("/process-latest-email")
+# async def process_latest_email(req: ProcessLatestEmailRequest, x_api_key: str = Header(...)):
+#     request_id = str(uuid.uuid4())
+#     logger.info(f"request_id={request_id} action=process_latest_email")
+#
+#     try:
+#         authenticate(x_api_key)
+#         result = process_latest_unread_email(mark_as_read=req.mark_as_read)
+#         logger.info(f"request_id={request_id} status={result.get('status')}")
+#         return {
+#             "request_id": request_id,
+#             **result,
+#         }
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"request_id={request_id} status=error error={str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))

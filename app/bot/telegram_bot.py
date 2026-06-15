@@ -54,9 +54,9 @@ from telegram.ext import Application, MessageHandler, CommandHandler, filters, C
 from telegram.request import HTTPXRequest
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from memory.database import clear_history
+from engine.memory.store import clear_history
 from dotenv import load_dotenv
 import httpx
 import logging

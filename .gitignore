@@ -1,0 +1,14 @@
+.env
+.git
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+.venv
+venv/
+node_modules
+.DS_Store
+*.log
+credentials.json
+token.json
+notes/

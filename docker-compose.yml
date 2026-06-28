@@ -1,0 +1,38 @@
+services:
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"    #port
+    env_file:
+      - .env
+    environment:
+      # override ollama URL so it hits the ollama container not localhost
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - ./notes:/app/notes
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  bot:
+    build: .
+    command: python bot/telegram_bot.py
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_data:

@@ -10,7 +10,6 @@ python-dotenv
 httpx
 duckduckgo-search
 ddgs
-supabase
 google-api-python-client
 google-auth-oauthlib
 google-auth-httplib2

@@ -72,7 +72,7 @@ CORE_CONTEXT_FILES = [
 #     logger.info(f"llm:get_llm:ready elapsed={time.perf_counter() - start_time:.2f}s model={model}")
 #     return llm
 
-client = Anthropic(api_key="55b0360aa23441a99cf6ba1985093128.DkWnAWzRUELQXRTm",
+client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""),
                    base_url="https://api.z.ai/api/anthropic")
 
 def get_llm(
